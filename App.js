@@ -35,32 +35,10 @@ const Map = () => {
 let test = "test";
 
 const Scan = () => {
-  /*
-  <Ionicons
-        name="qr-code-outline"
-        size={150}
-        color="gray"
-        style={{ marginBottom: 30 }}
-      />
-      <Text
-        style={{
-          fontSize: 20,
-          marginBottom: 30,
-          width: "70%",
-          textAlign: "center",
-        }}
-      >
-        Scan a QR code at the location nearest you.
-      </Text>
-      <TouchableWithoutFeedback>
-        <View style={styles.button}>
-          <Text style={styles.buttonText}>Scan a Code</Text>
-        </View>
-      </TouchableWithoutFeedback>
-  */
   const [facing, setFacing] = React.useState("back");
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = React.useState(false);
+  const [cameraShown, setCameraShown] = React.useState(false);
 
   if (!permission) {
     return <View />;
@@ -79,24 +57,56 @@ const Scan = () => {
 
   const handleBarCodeScanned = ({ type, data }) => {
     setScanned(true);
+    setCameraShown(false);
     alert(`Bar code with type ${type} and data ${data} has been scanned!`);
   };
 
-  return (
-    <View style={{ flex: 1, justifyContent: "center" }}>
-      <CameraView
-        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-        barcodeScannerSettings={{
-          barcodeTypes: ["qr"],
-        }}
-        style={{ flex: 1 }}
-        facing={facing}
-      ></CameraView>
-      {scanned && (
-        <Button title={"Tap to Scan Again"} onPress={() => setScanned(false)} />
-      )}
-    </View>
-  );
+  if (cameraShown) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center" }}>
+        <CameraView
+          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+          barcodeScannerSettings={{
+            barcodeTypes: ["qr"],
+          }}
+          style={{ flex: 1 }}
+          facing={facing}
+        ></CameraView>
+        {scanned && (
+          <Button
+            title={"Tap to Scan Again"}
+            onPress={() => setScanned(false)}
+          />
+        )}
+      </View>
+    );
+  } else {
+    return (
+      <View style={styles.container}>
+        <Ionicons
+          name="qr-code-outline"
+          size={150}
+          color="gray"
+          style={{ marginBottom: 30 }}
+        />
+        <Text
+          style={{
+            fontSize: 20,
+            marginBottom: 30,
+            width: "70%",
+            textAlign: "center",
+          }}
+        >
+          Scan a QR code at the location nearest you.
+        </Text>
+        <TouchableWithoutFeedback onPress={() => setCameraShown(true)}>
+          <View style={styles.button}>
+            <Text style={styles.buttonText}>Scan a Code</Text>
+          </View>
+        </TouchableWithoutFeedback>
+      </View>
+    );
+  }
 };
 
 export default function App() {
@@ -139,7 +149,7 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    height: "100%",
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
