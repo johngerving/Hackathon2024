@@ -18,7 +18,6 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { CameraView, useCameraPermissions } from "expo-camera/next";
 import { Picker } from "@react-native-picker/picker";
-// import { Image } from "expo-image";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -191,6 +190,8 @@ function Scan({ navigation }) {
   const [scanned, setScanned] = React.useState(false);
   const [cameraShown, setCameraShown] = React.useState(false);
   const [locationID, setLocationID] = React.useState(null);
+  const [floorName, setFloorName] = React.useState(null);
+  const [buildingName, setBuildingName] = React.useState(null);
 
   if (!permission) {
     return <View />;
@@ -227,6 +228,32 @@ function Scan({ navigation }) {
           setLocationID(response.data[0].location_id);
           setScanned(true);
           setCameraShown(false);
+          return response;
+        }
+      })
+      .then((response) => {
+        return supabase.from("floors").select("*").match({
+          floor_id: response.data[0].floor_id,
+        });
+      })
+      .then((response, error) => {
+        if (error) {
+          console.warn(error);
+        } else if (response) {
+          setFloorName(response.data[0].name);
+          return response;
+        }
+      })
+      .then((response) => {
+        return supabase.from("buildings").select("*").match({
+          building_id: response.data[0].building_id,
+        });
+      })
+      .then((response, error) => {
+        if (error) {
+          console.warn(error);
+        } else if (response) {
+          setBuildingName(response.data[0].name);
         }
       });
   }
@@ -257,6 +284,8 @@ function Scan({ navigation }) {
           locationID={locationID}
           setLocationID={setLocationID}
           setScanned={setScanned}
+          floorName={floorName}
+          buildingName={buildingName}
         />
       );
     } else {
@@ -289,7 +318,13 @@ function Scan({ navigation }) {
   }
 }
 
-const Scanned = ({ locationID, setLocationID, setScanned }) => {
+const Scanned = ({
+  locationID,
+  setLocationID,
+  setScanned,
+  floorName,
+  buildingName,
+}) => {
   const [checked, setChecked] = React.useState(false);
   const [navigation, setNavigation] = React.useState(null);
 
@@ -316,54 +351,56 @@ const Scanned = ({ locationID, setLocationID, setScanned }) => {
       );
     }
   } else {
-    return (
-      <View style={styles.container}>
-        <Text
-          style={{
-            fontSize: 20,
-            marginBottom: 30,
-            width: "70%",
-            textAlign: "center",
-          }}
-        >
-          Location {locationID}
-        </Text>
-        <TouchableWithoutFeedback
-          onPress={() => {
-            setChecked(true);
-            setNavigation("in");
-          }}
-        >
-          <View
-            style={Object.assign({}, styles.button, {
+    if (locationID && floorName && buildingName) {
+      return (
+        <View style={styles.container}>
+          <Text
+            style={{
+              fontSize: 20,
               marginBottom: 30,
-              width: "40%",
-              height: "20px",
-            })}
+              width: "70%",
+              textAlign: "center",
+            }}
           >
-            <Text style={styles.buttonText}>Check In</Text>
-          </View>
-        </TouchableWithoutFeedback>
-        <TouchableWithoutFeedback>
-          <View
-            style={Object.assign({}, styles.button, {
-              marginBottom: 30,
-              width: "40%",
-            })}
+            {buildingName}, {floorName}, Location {locationID}
+          </Text>
+          <TouchableWithoutFeedback
+            onPress={() => {
+              setChecked(true);
+              setNavigation("in");
+            }}
           >
-            <Text
-              style={styles.buttonText}
-              onPress={() => {
-                setChecked(true);
-                setNavigation("out");
-              }}
+            <View
+              style={Object.assign({}, styles.button, {
+                marginBottom: 30,
+                width: "40%",
+                height: "20px",
+              })}
             >
-              Check Out
-            </Text>
-          </View>
-        </TouchableWithoutFeedback>
-      </View>
-    );
+              <Text style={styles.buttonText}>Check In</Text>
+            </View>
+          </TouchableWithoutFeedback>
+          <TouchableWithoutFeedback>
+            <View
+              style={Object.assign({}, styles.button, {
+                marginBottom: 30,
+                width: "40%",
+              })}
+            >
+              <Text
+                style={styles.buttonText}
+                onPress={() => {
+                  setChecked(true);
+                  setNavigation("out");
+                }}
+              >
+                Check Out
+              </Text>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      );
+    }
   }
 };
 
@@ -517,11 +554,16 @@ const styles = StyleSheet.create({
     color: "white",
   },
   image: {
-    width: "99%",
+    ...StyleSheet.absoluteFillObject,
+    width: undefined,
     height: undefined,
-    aspectRatio: 23 / 17,
-    backgroundColor: "#fff",
-    margin: 0,
-    padding: 0,
+    resizeMode: "cover",
+    backgroundColor: "red",
+    // width: "99%",
+    // height: undefined,
+    // aspectRatio: 23 / 17,
+    // backgroundColor: "#fff",
+    // margin: 0,
+    // padding: 0,
   },
 });
