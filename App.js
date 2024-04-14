@@ -60,6 +60,7 @@ const Scan = () => {
   */
   const [facing, setFacing] = React.useState("back");
   const [permission, requestPermission] = useCameraPermissions();
+  const [scanned, setScanned] = React.useState(false);
 
   if (!permission) {
     return <View />;
@@ -76,9 +77,24 @@ const Scan = () => {
     );
   }
 
+  const handleBarCodeScanned = ({ type, data }) => {
+    setScanned(true);
+    alert(`Bar code with type ${type} and data ${data} has been scanned!`);
+  };
+
   return (
     <View style={{ flex: 1, justifyContent: "center" }}>
-      <CameraView style={{ flex: 1 }} facing={facing}></CameraView>
+      <CameraView
+        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+        barcodeScannerSettings={{
+          barcodeTypes: ["qr"],
+        }}
+        style={{ flex: 1 }}
+        facing={facing}
+      ></CameraView>
+      {scanned && (
+        <Button title={"Tap to Scan Again"} onPress={() => setScanned(false)} />
+      )}
     </View>
   );
 };
