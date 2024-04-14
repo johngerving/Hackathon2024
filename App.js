@@ -7,10 +7,11 @@ import {
   View,
   TouchableWithoutFeedback,
   Button,
+  BackHandler,
 } from "react-native";
 import "react-native-url-polyfill/auto";
 import { createClient } from "@supabase/supabase-js";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer, useFocusEffect } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -25,9 +26,19 @@ const supabase = createClient(
 );
 
 const Map = () => {
+  const [floor, setFloor] = React.useState(1);
+
+  React.useEffect(() => {
+    async function getFloorMaps() {
+      const { data, error } = await supabase.from("floors").select();
+      console.log(data);
+    }
+    getFloorMaps();
+  }, []);
+
   return (
     <View>
-      <Text>Map</Text>
+      <Text style={{ fontSize: 25, margin: 10 }}>Library</Text>
     </View>
   );
 };
@@ -39,6 +50,7 @@ const Scan = () => {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = React.useState(false);
   const [cameraShown, setCameraShown] = React.useState(false);
+  const [locationID, setLocationID] = React.useState(null);
 
   if (!permission) {
     return <View />;
@@ -55,11 +67,29 @@ const Scan = () => {
     );
   }
 
-  const handleBarCodeScanned = ({ type, data }) => {
-    setScanned(true);
-    setCameraShown(false);
-    alert(`Bar code with type ${type} and data ${data} has been scanned!`);
-  };
+  function handleBarCodeScanned({ type, data }) {
+    // Data format: "building_id,floor_id,location_id"
+    let data_split = data.split(",");
+    console.log(data_split);
+
+    supabase
+      .from("locations")
+      .select("*")
+      .match({
+        building_id: data_split[0],
+        floor_id: data_split[1],
+        location_id: data_split[2],
+      })
+      .then((response, error) => {
+        if (error) {
+          console.warn(error);
+        } else if (response) {
+          setLocationID(response.data[0].location_id);
+          setScanned(true);
+          setCameraShown(false);
+        }
+      });
+  }
 
   if (cameraShown) {
     return (
@@ -81,14 +111,73 @@ const Scan = () => {
       </View>
     );
   } else {
+    if (locationID) {
+      return (
+        <Scanned
+          locationID={locationID}
+          setLocationID={setLocationID}
+          setScanned={setScanned}
+        />
+      );
+    } else {
+      return (
+        <View style={styles.container}>
+          <Ionicons
+            name="qr-code-outline"
+            size={150}
+            color="gray"
+            style={{ marginBottom: 30 }}
+          />
+          <Text
+            style={{
+              fontSize: 20,
+              marginBottom: 30,
+              width: "70%",
+              textAlign: "center",
+            }}
+          >
+            Scan a QR code at the location nearest you.
+          </Text>
+          <TouchableWithoutFeedback onPress={() => setCameraShown(true)}>
+            <View style={styles.button}>
+              <Text style={styles.buttonText}>Scan a Code</Text>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      );
+    }
+  }
+};
+
+const Scanned = ({ locationID, setLocationID, setScanned }) => {
+  const [checked, setChecked] = React.useState(false);
+  const [navigation, setNavigation] = React.useState(null);
+
+  if (checked) {
+    if (navigation == "in") {
+      return (
+        <CheckedIn
+          setChecked={setChecked}
+          setNavigation={setNavigation}
+          locationID={locationID}
+          setLocationID={setLocationID}
+          setScanned={setScanned}
+        />
+      );
+    } else if (navigation == "out") {
+      return (
+        <CheckedOut
+          setChecked={setChecked}
+          setNavigation={setNavigation}
+          locationID={locationID}
+          setLocationID={setLocationID}
+          setScanned={setScanned}
+        />
+      );
+    }
+  } else {
     return (
       <View style={styles.container}>
-        <Ionicons
-          name="qr-code-outline"
-          size={150}
-          color="gray"
-          style={{ marginBottom: 30 }}
-        />
         <Text
           style={{
             fontSize: 20,
@@ -97,16 +186,136 @@ const Scan = () => {
             textAlign: "center",
           }}
         >
-          Scan a QR code at the location nearest you.
+          Location {locationID}
         </Text>
-        <TouchableWithoutFeedback onPress={() => setCameraShown(true)}>
-          <View style={styles.button}>
-            <Text style={styles.buttonText}>Scan a Code</Text>
+        <TouchableWithoutFeedback
+          onPress={() => {
+            setChecked(true);
+            setNavigation("in");
+          }}
+        >
+          <View
+            style={Object.assign({}, styles.button, {
+              marginBottom: 30,
+              width: "40%",
+              height: "20px",
+            })}
+          >
+            <Text style={styles.buttonText}>Check In</Text>
+          </View>
+        </TouchableWithoutFeedback>
+        <TouchableWithoutFeedback>
+          <View
+            style={Object.assign({}, styles.button, {
+              marginBottom: 30,
+              width: "40%",
+            })}
+          >
+            <Text
+              style={styles.buttonText}
+              onPress={() => {
+                setChecked(true);
+                setNavigation("out");
+              }}
+            >
+              Check Out
+            </Text>
           </View>
         </TouchableWithoutFeedback>
       </View>
     );
   }
+};
+
+const CheckedIn = ({
+  setChecked,
+  setNavigation,
+  locationID,
+  setLocationID,
+  setScanned,
+}) => {
+  React.useEffect(() => {
+    incrementOccupancy(locationID);
+  }, []);
+
+  async function incrementOccupancy(location_id) {
+    const { data, error } = await supabase.rpc("increment", {
+      x: 1,
+      id: location_id,
+    });
+    if (error) {
+      console.warn(error);
+    }
+  }
+  return (
+    <View style={{ alignItems: "left", backgroundColor: "#fff" }}>
+      <Button
+        title="Back"
+        style={{ textAlign: "left" }}
+        onPress={() => {
+          setChecked(false);
+          setNavigation(null);
+          setLocationID(null);
+          setScanned(false);
+        }}
+      />
+      <View style={styles.container}>
+        <Ionicons
+          name="checkmark-circle-outline"
+          size={100}
+          style={{ marginBottom: 30 }}
+          color="black"
+        />
+        <Text style={{ fontSize: 20 }}>Check-in successful!</Text>
+      </View>
+    </View>
+  );
+};
+
+const CheckedOut = ({
+  setChecked,
+  setNavigation,
+  locationID,
+  setLocationID,
+  setScanned,
+}) => {
+  React.useEffect(() => {
+    decrementOccupancy(locationID);
+  }, []);
+
+  async function decrementOccupancy(location_id) {
+    const { data, error } = await supabase.rpc("increment", {
+      x: -1,
+      id: location_id,
+    });
+    if (error) {
+      console.warn(error);
+    }
+  }
+
+  return (
+    <View style={{ alignItems: "left", backgroundColor: "#fff" }}>
+      <Button
+        title="Back"
+        style={{ textAlign: "left" }}
+        onPress={() => {
+          setChecked(false);
+          setNavigation(null);
+          setLocationID(null);
+          setScanned(false);
+        }}
+      />
+      <View style={styles.container}>
+        <Ionicons
+          name="checkmark-circle-outline"
+          size={100}
+          style={{ marginBottom: 30 }}
+          color="black"
+        />
+        <Text style={{ fontSize: 20 }}>Check-out successful!</Text>
+      </View>
+    </View>
+  );
 };
 
 export default function App() {
@@ -118,7 +327,6 @@ export default function App() {
 
   async function getLocations() {
     const { data } = await supabase.from("locations").select();
-    console.log(data);
   }
 
   return (
@@ -149,6 +357,7 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: {
+    width: "100%",
     height: "100%",
     backgroundColor: "#fff",
     alignItems: "center",
