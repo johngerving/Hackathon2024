@@ -7,7 +7,7 @@ import {
   View,
   TouchableWithoutFeedback,
   Button,
-  BackHandler,
+  Image,
 } from "react-native";
 import "react-native-url-polyfill/auto";
 import { createClient } from "@supabase/supabase-js";
@@ -16,6 +16,8 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { CameraView, useCameraPermissions } from "expo-camera/next";
+import { Picker } from "@react-native-picker/picker";
+// import { Image } from "expo-image";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -25,25 +27,61 @@ const supabase = createClient(
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV0b3BnZHlid2h4dWNudnhrYWZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTMwMzk3NzUsImV4cCI6MjAyODYxNTc3NX0.hn3WqE4JSl716MYmWjAowGQnrtUP-DhJUs9jinBJ7KI"
 );
 
+const blurhash =
+  "|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[";
+
 const Map = () => {
-  const [floor, setFloor] = React.useState(1);
+  const [floorList, setFloorList] = React.useState([]);
+  const [selectedFloor, setSelectedFloor] = React.useState();
+  const [currentLink, setCurrentLink] = React.useState();
 
   React.useEffect(() => {
     async function getFloorMaps() {
       const { data, error } = await supabase.from("floors").select();
-      console.log(data);
+
+      if (error) {
+        console.log(error);
+      } else if (data) {
+        setFloorList(data);
+      }
     }
     getFloorMaps();
   }, []);
 
+  React.useEffect(() => {
+    let floor = floorList.find((element) => element.name == selectedFloor);
+
+    console.log(floor);
+
+    if (floor) {
+      console.log("Floor");
+      setCurrentLink(floor.map);
+    }
+  }, [selectedFloor]);
+
   return (
-    <View>
+    <View
+      style={{
+        backgroundColor: "#fff",
+        height: "100%",
+      }}
+    >
       <Text style={{ fontSize: 25, margin: 10 }}>Library</Text>
+      <Picker
+        style={{ marginTop: -60 }}
+        selectedValue={selectedFloor}
+        onValueChange={(itemValue, itemIndex) => setSelectedFloor(itemValue)}
+      >
+        {floorList.map(function (floor, index) {
+          return (
+            <Picker.Item label={floor.name} value={floor.name} key={index} />
+          );
+        })}
+      </Picker>
+      <Image style={styles.image} source={{ uri: currentLink }} />
     </View>
   );
 };
-
-let test = "test";
 
 const Scan = () => {
   const [facing, setFacing] = React.useState("back");
@@ -357,6 +395,7 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     width: "100%",
     height: "100%",
     backgroundColor: "#fff",
@@ -375,5 +414,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     padding: 20,
     color: "white",
+  },
+  image: {
+    width: "99%",
+    height: undefined,
+    aspectRatio: 23 / 17,
+    backgroundColor: "#fff",
+    margin: 0,
+    padding: 0,
   },
 });
