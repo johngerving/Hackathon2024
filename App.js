@@ -96,8 +96,9 @@ function Map({ navigation }) {
       if (error) {
         console.log(error);
       } else if (data) {
-        setFloorList(data);
-        setSelectedFloor(data[0].name);
+        let sorted = data.sort((a, b) => a.floor_id - b.floor_id);
+        setFloorList(sorted);
+        setSelectedFloor(sorted[0].name);
       }
     }
     getFloorMaps();
