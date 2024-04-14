@@ -68,7 +68,6 @@ function Map({ navigation }) {
     }
 
     const unsubscribe = navigation.addListener("focus", () => {
-      console.log("focus");
       let floor = floorList.find((element) => element.name == selectedFloor);
 
       if (floor) {
@@ -79,7 +78,6 @@ function Map({ navigation }) {
             let occupied = el.num_occupants > 0 ? 1 : 0;
             locations.push([el.location_x, el.location_y, occupied]);
           });
-          console.log(locations);
           setLocationList(locations);
         });
       }
