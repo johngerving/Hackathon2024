@@ -50,7 +50,7 @@ const Dot = ({ position, color }) => {
 
 function Map({ navigation }) {
   const [floorList, setFloorList] = React.useState([]);
-  const [selectedFloor, setSelectedFloor] = React.useState();
+  const [selectedFloor, setSelectedFloor] = React.useState(1);
   const [currentLink, setCurrentLink] = React.useState();
   const [locationList, setLocationList] = React.useState([]);
 
@@ -97,6 +97,7 @@ function Map({ navigation }) {
         console.log(error);
       } else if (data) {
         setFloorList(data);
+        setSelectedFloor(data[0].name);
       }
     }
     getFloorMaps();
@@ -140,6 +141,7 @@ function Map({ navigation }) {
     >
       <Text style={{ fontSize: 25, margin: 10 }}>Library</Text>
       <Picker
+        style={{ marginTop: -50 }}
         selectedValue={selectedFloor}
         onValueChange={(itemValue, itemIndex) => setSelectedFloor(itemValue)}
       >
