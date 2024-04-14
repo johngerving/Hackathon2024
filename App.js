@@ -8,6 +8,7 @@ import {
   TouchableWithoutFeedback,
   Button,
   Image,
+  Dimensions,
 } from "react-native";
 import "react-native-url-polyfill/auto";
 import { createClient } from "@supabase/supabase-js";
@@ -30,10 +31,63 @@ const supabase = createClient(
 const blurhash =
   "|rF?hV%2WCj[ayj[a|j[az_NaeWBj@ayfRayfQfQM{M|azj[azf6fQfQfQIpWXofj[ayj[j[fQayWCoeoeaya}j[ayfQa{oLj?j[WVj[ayayj[fQoff7azayj[ayj[j[ayofayayayj[fQj[ayayj[ayfjj[j[ayjuayj[";
 
-const Map = () => {
+const Dot = ({ position, color }) => {
+  return (
+    <View
+      style={{
+        position: "absolute",
+        top: position[1] + "%",
+        left: position[0] + "%",
+        zIndex: 999,
+        width: 6,
+        height: 6,
+        backgroundColor: color,
+        borderRadius: 3,
+      }}
+    ></View>
+  );
+};
+
+function Map({ navigation }) {
   const [floorList, setFloorList] = React.useState([]);
   const [selectedFloor, setSelectedFloor] = React.useState();
   const [currentLink, setCurrentLink] = React.useState();
+  const [locationList, setLocationList] = React.useState([]);
+
+  React.useEffect(() => {
+    async function getLocations(floor_id) {
+      const { data, error } = await supabase
+        .from("locations")
+        .select()
+        .eq("floor_id", floor_id);
+
+      if (error) {
+        console.log(error);
+      } else if (data) {
+        return data;
+      }
+    }
+
+    const unsubscribe = navigation.addListener("focus", () => {
+      console.log("focus");
+      let floor = floorList.find((element) => element.name == selectedFloor);
+
+      if (floor) {
+        setCurrentLink(floor.map);
+        getLocations(floor.floor_id).then((data) => {
+          let locations = [];
+          data.forEach((el) => {
+            let occupied = el.num_occupants > 0 ? 1 : 0;
+            locations.push([el.location_x, el.location_y, occupied]);
+          });
+          console.log(locations);
+          setLocationList(locations);
+        });
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   React.useEffect(() => {
     async function getFloorMaps() {
@@ -49,13 +103,31 @@ const Map = () => {
   }, []);
 
   React.useEffect(() => {
+    async function getLocations(floor_id) {
+      const { data, error } = await supabase
+        .from("locations")
+        .select()
+        .eq("floor_id", floor_id);
+
+      if (error) {
+        console.log(error);
+      } else if (data) {
+        return data;
+      }
+    }
+
     let floor = floorList.find((element) => element.name == selectedFloor);
 
-    console.log(floor);
-
     if (floor) {
-      console.log("Floor");
       setCurrentLink(floor.map);
+      getLocations(floor.floor_id).then((data) => {
+        let locations = [];
+        data.forEach((el) => {
+          let occupied = el.num_occupants > 0 ? 1 : 0;
+          locations.push([el.location_x, el.location_y, occupied]);
+        });
+        setLocationList(locations);
+      });
     }
   }, [selectedFloor]);
 
@@ -68,7 +140,6 @@ const Map = () => {
     >
       <Text style={{ fontSize: 25, margin: 10 }}>Library</Text>
       <Picker
-        style={{ marginTop: -60 }}
         selectedValue={selectedFloor}
         onValueChange={(itemValue, itemIndex) => setSelectedFloor(itemValue)}
       >
@@ -78,12 +149,40 @@ const Map = () => {
           );
         })}
       </Picker>
-      <Image style={styles.image} source={{ uri: currentLink }} />
+      <View
+        style={{
+          position: "relative",
+          width: "95%",
+          margin: "0 auto",
+          alignSelf: "center",
+        }}
+      >
+        <Image
+          style={{
+            width: "100%",
+            height: 250,
+            margin: 0,
+            padding: 0,
+          }}
+          source={{ uri: currentLink }}
+          resizeMode="contain"
+        />
+
+        {locationList.map(function (location, index) {
+          return (
+            <Dot
+              position={location}
+              color={location[2] == 0 ? "green" : "red"}
+              key={index}
+            />
+          );
+        })}
+      </View>
     </View>
   );
-};
+}
 
-const Scan = () => {
+function Scan({ navigation }) {
   const [facing, setFacing] = React.useState("back");
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = React.useState(false);
@@ -185,7 +284,7 @@ const Scan = () => {
       );
     }
   }
-};
+}
 
 const Scanned = ({ locationID, setLocationID, setScanned }) => {
   const [checked, setChecked] = React.useState(false);
@@ -395,7 +494,6 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     width: "100%",
     height: "100%",
     backgroundColor: "#fff",
